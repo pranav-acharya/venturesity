@@ -1,0 +1,604 @@
+<html>
+<head>
+    <script type='text/javascript'>
+        //global variables for given data:
+        var polygon;
+        var startPoint;
+        var speed;
+        var givenTime;
+        var nextPoint;
+
+        //global variables for our calc
+        var totalDistance = 0;
+
+        //calculates the distance between two points
+        //uses formula => distance^2 = (x1-x0)^2 + (y1-y0)^2
+        function lengthOfLine(a, b) {
+
+            var xDiff = parseFloat(a.x) - parseFloat(b.x);
+            var yDiff = parseFloat(a.y) - parseFloat(b.y);
+            var distance = Math.sqrt(xDiff * xDiff + yDiff * yDiff);
+            //console.log(distance);
+            return distance;
+        }
+
+        // checks if point lies with in the boundary of the line (side of polygon)
+        function checkBounds(point, line) {
+            var withinBoundsX = true;
+            var withinBoundsY = true;
+            if (line.a.x < line.b.x) {
+                withinBoundsX = (point.x > line.b.x || point.x < line.a.x) ? false : true;
+            } else {
+                withinBoundsX = (point.x > line.a.x || point.x < line.b.x) ? false : true;
+            }
+            if (line.a.y < line.b.y) {
+                withinBoundsY = (point.y > line.b.y || point.y < line.a.y) ? false : true;
+            } else {
+                withinBoundsY = (point.y > line.a.y || point.y < line.b.y) ? false : true;
+            }
+            return (withinBoundsX && withinBoundsY)
+        }
+
+        //checks if point is a vertex of polygon
+        function checkiIfCorner(point) {
+            roundOfPoint(point);
+            for (var i = 0; i < polygon.length; i++) {
+                if (point.x === polygon[i].a.x && point.y === polygon[i].a.y)
+                    return true;
+            }
+            return false;
+        }
+
+        // function to find the equation of next line followed
+        //inputs are the intialpoint and cushion point( point where ball hits boundary )
+        // Function is divided into 2 major parts:
+        // 1. When the line hits a corner
+        // 2. When the line hits a side (which is subdivided into:2.1 Vertical side 2.2 Any other side)
+        function newLine(initialPoint, secondPoint) {
+
+            var m1 = (secondPoint.y - initialPoint.y) / (secondPoint.x - initialPoint.x);
+
+            var m3;
+            // 1. When the line hits a corner
+            if (checkiIfCorner(secondPoint)) {
+                // Since its hitting the corner the slope of the next line will be same as the line hitting the boundary.
+                m3 = m1;
+
+                // Derive the equation of the line from the given point and the slope
+                var equation = {
+                    "a": m3,
+                    "b": -1,
+                    "c": m3 * secondPoint.x - secondPoint.y
+                };
+
+                // Since lines are infinite in length, you may get many intersection points with different sides of the polygon
+                // Hence store them in an array
+                var pointsToBeConsidered = [];
+                for (var i = 0; i < polygon.length; i++) {
+                    var newpoint = solveLines(equation, polygon[i].equation);
+                    if (checkBounds(newpoint, polygon[i])) {
+                        //store the points lying on the sides in an array
+                        pointsToBeConsidered.push(newpoint);
+                    }
+                }
+
+                //Among these points we are only interested in one point. ie.
+                //which point lies on the side of the initialPoint, since the direction of the new line is towards the initial point
+                var dx, dy;
+                var finalPoint;
+                dx = secondPoint.x - initialPoint.x;
+                dy = secondPoint.y - initialPoint.y;
+
+                for (var i = 0; i < pointsToBeConsidered.length; i++) {
+                    if ((secondPoint.x - pointsToBeConsidered[i].x) * (dx) > 0 && (secondPoint.y - pointsToBeConsidered[i].y) * (dy) > 0) {
+                        finalPoint = pointsToBeConsidered[i];
+                        break;
+                    }
+                }
+
+                // Construct the new line object with the equation, end points and the slope and return it.
+                var line = {
+                    "b": {
+                        "x": finalPoint.x,
+                        "y": finalPoint.y
+                    },
+                    "a": {
+                        "x": secondPoint.x,
+                        "y": secondPoint.y
+                    },
+                    "equation": equation,
+                    "slope": m3
+                };
+
+                return line;
+
+            } else {
+                // ===========2. Sides=====
+
+                var currentSideIndex = checkSide(secondPoint); //represents the side where the second point lies
+                var side = polygon[currentSideIndex];
+                var m2 = side.slope;
+                var tanTheta;
+
+                //======================    2.1 Vertical Side ==========================
+                // Find the slope of the reflected line.
+                // If the side that the line is hitting is a vertical line, its slope will be infinity or -infinity
+                // Hence the slope of the reflected line can be directly found to be as (-1)*(slope of hitting line)
+                if (m2 == null || m2 === Infinity || m2 === -Infinity) {
+                    tanTheta = Math.abs(1 / m1);
+                    m3 = -m1;
+                } else {
+                    //=================== 2.2 Any other Side ========================
+                    // Find the slope of the reflected line using the tangent of the angle between two lines.
+                    tanTheta = ((m2 - m1) / (1 + m1 * m2));
+                    m3 = (m2 + tanTheta) / (1 - m2 * tanTheta);
+                }
+            }
+
+            // form the equation of the line
+            var equation = {
+                "a": m3,
+                "b": -1,
+                "c": m3 * secondPoint.x - secondPoint.y
+            };
+
+            var lineIndex;
+            var intersectingPoint;
+            var sides = polygon.length;
+            // Solve the equation of the lines with the nearest sides and then the next pair of nearest sides and so on till the entire polygon is covered.
+            // We loop +1 and -1 from the current sides to find the intersecting side in least possible time.
+            for (var i = 1; i <= Math.floor(polygon.length / 2); i++) {
+
+
+                var newPoint = solveLines(equation, polygon[(currentSideIndex - i + sides) % sides].equation);
+                if (newPoint) {
+                    var isWithinBounds = checkBounds(newPoint, polygon[(currentSideIndex - i + sides) % sides]);
+                    if (isWithinBounds && !(Math.round(newPoint.x * 10000) / 10000 === Math.round(secondPoint.x * 10000) / 10000 && Math.round(newPoint.y * 10000) / 10000 === Math.round(secondPoint.y * 10000) / 10000)) {
+                        lineIndex = i;
+                        intersectingPoint = newPoint;
+                        break;
+                    } else {
+                        newPoint = solveLines(equation, polygon[(currentSideIndex + i) % sides].equation);
+                        if (checkBounds(newPoint, polygon[(currentSideIndex + i) % sides]) && !(Math.round(newPoint.x * 10000) / 10000 === Math.round(secondPoint.x * 10000) / 10000 && Math.round(newPoint.y * 10000) / 10000 === Math.round(secondPoint.y * 10000) / 10000)) {
+                            lineIndex = i;
+                            intersectingPoint = newPoint;
+                            break;
+                        }
+                    }
+                } else {
+                    newPoint = solveLines(equation, polygon[(currentSideIndex + i) % sides].equation);
+                    if (checkBounds(newPoint, polygon[(currentSideIndex + i) % sides]) && !(Math.round(newPoint.x * 10000) / 10000 === Math.round(secondPoint.x * 10000) / 10000 && Math.round(newPoint.y * 10000) / 10000 === Math.round(secondPoint.y * 10000) / 10000)) {
+                        lineIndex = i;
+                        intersectingPoint = newPoint;
+                        break;
+                    }
+                }
+            }
+
+            // Construct the line object and return
+            var line = {
+                "b": {
+                    "x": intersectingPoint.x,
+                    "y": intersectingPoint.y
+                },
+                "a": {
+                    "x": secondPoint.x,
+                    "y": secondPoint.y
+                },
+                "equation": equation,
+                "slope": m3
+            };
+
+            var distance = lengthOfLine(secondPoint, intersectingPoint);
+
+            return line;
+        }
+
+        //function to find intersection point between two lines
+        /*
+           the logic uses cramer's rule
+           return intersection point as obj eg: {x:0,y:0}
+           return {x:null,y:null} if lines dont intersect //here null used instead of infinity
+        */
+
+        function solveLines(o1, o2) {
+            var o = {};
+            o.x = (o1.c * o2.b - o1.b * o2.c) / (o1.a * o2.b - o1.b * o2.a);
+            o.y = (o1.a * o2.c - o1.c * o2.a) / (o1.a * o2.b - o1.b * o2.a);
+            return o;
+        }
+
+        // check if the point is on the line by puting the point in line equation aX+bY=c
+        function isOnLine(point, line) {
+            if ((Math.round((line.a * point.x + line.b * point.y) * 100) / 100) === (Math.round(line.c * 100) / 100)) {
+                return true;
+            } else return false;
+        }
+
+        //Given a point, returns the side that it belongs to.
+        function checkSide(point) {
+            var i = 0;
+            for (; i < polygon.length; i++) {
+
+                if (isOnLine(point, polygon[i].equation)) {
+                    var withinBoundsX = true,
+                        withinBoundsY = true;
+                    //if within bounds of the side
+                    if (polygon[i].a.x < polygon[i].b.x) {
+                        withinBoundsX = (point.x > polygon[i].b.x || point.x < polygon[i].a.x) ? false : true;
+                    } else {
+                        withinBoundsX = (point.x > polygon[i].a.x || point.x < polygon[i].b.x) ? false : true;
+                    }
+                    if (polygon[i].a.y < polygon[i].b.y) {
+                        withinBoundsY = (point.y > polygon[i].b.y || point.y < polygon[i].a.y) ? false : true;
+                    } else {
+                        withinBoundsY = (point.y > polygon[i].a.y || point.y < polygon[i].b.y) ? false : true;
+                    }
+
+                    //return the side after breaking loop
+                    if (withinBoundsX && withinBoundsY)
+                        break;
+                }
+            }
+            if (i == polygon.length) {
+                return null;
+            } else
+                return i;
+        }
+
+        /*function to draw line from point1 to point2 on the HTML canvas*/
+        function renderLine(point1, point2, ctx) {
+            var c = document.getElementById("myCanvas");
+            ctx.beginPath();
+
+            //Translate the point to the origin;
+            var origin = {};
+            origin.x = c.width/2;
+            origin.y = c.height/2;
+            ctx.moveTo(origin.x+point1.x, origin.y-point1.y);
+            ctx.lineTo(origin.x+point2.x, origin.y-point2.y);
+            ctx.stroke();
+        }
+
+        function clearInputs() {
+            document.getElementById("speed").value = "";
+            document.getElementById("time").value = "";
+            document.getElementById("initial_pos").value = "";
+            document.getElementById("cushion_pos").value = "";
+
+            document.getElementById("polygon").value = "";
+            document.getElementById("polygonInputButton").disabled = true;
+
+            document.getElementById("polygonInput").innerHTML = "";
+
+            var c = document.getElementById("myCanvas");
+            var ctx = c.getContext("2d");
+            ctx.clearRect(0, 0, c.width, c.height);
+
+            document.getElementById("answer").innerHTML = "";
+        }
+
+        function initializeOtherInputs() {
+            document.getElementById("speed").value = 100;
+            document.getElementById("time").value = 105;
+            document.getElementById("initial_pos").value = "3,4";
+            document.getElementById("cushion_pos").value = "0,0";
+
+            document.getElementById("polygon").value = 4;
+            document.getElementById("polygonInputButton").disabled = false;
+            document.getElementById("polygonInputButton").click();
+
+            document.getElementById("poly_1").value = "0,0";
+            document.getElementById("poly_2").value = "284,50";
+            document.getElementById("poly_3").value = "284,142";
+            document.getElementById("poly_4").value = "-100,142";
+        }
+
+        function initializeDefaultInputs() {
+            document.getElementById("speed").value = 1;
+            document.getElementById("time").value = 15;
+            document.getElementById("initial_pos").value = "3,4";
+            document.getElementById("cushion_pos").value = "0,0";
+
+            document.getElementById("polygon").value = 4;
+            document.getElementById("polygonInputButton").disabled = false;
+            document.getElementById("polygonInputButton").click();
+
+            document.getElementById("poly_1").value = "0,0";
+            document.getElementById("poly_2").value = "284,0";
+            document.getElementById("poly_3").value = "284,142";
+            document.getElementById("poly_4").value = "0,142";
+        }
+        // reads all inputs need
+        function getInputs() {
+            //boundary polygon with n side (n is calcuated by length of array polygon)
+            /*
+            polygon obj contain
+            a,b are starting and ending point
+            equation of line represents in format aX+bY=c
+            slope of line
+            */
+            var no_of_sides = parseInt(document.getElementById('polygon').value);
+            polygon = [];
+            for (var i = 1; i <= no_of_sides; i++) {
+                var obj = {};var temp;
+                obj.a = {};
+                obj.b = {};
+                obj.equation = {};
+                obj.slope = null;
+                temp = document.getElementById("poly_" + i).value.split(",");
+                obj.a.x = parseInt(temp[0]);
+                obj.a.y = parseInt(temp[1]);
+                if (i == no_of_sides) {
+                    // for the last point
+                    temp = document.getElementById("poly_1").value.split(",");
+                    obj.b.x = parseInt(temp[0]);
+                    obj.b.y = parseInt(temp[1]);
+                } else {
+                    temp = document.getElementById("poly_"+(i+1)).value.split(",");
+                    obj.b.x = parseInt(temp[0]);
+                    obj.b.y = parseInt(temp[1]);
+                }
+
+                // if slope is null then its equalent to infinity
+                obj.slope = (obj.a.y - obj.b.y) / (obj.a.x - obj.b.x);
+
+                // the equation of line is in the format
+                if ((obj.a.x - obj.b.x) != 0) {
+                    obj.equation.a = obj.slope;
+                    obj.equation.b = -1;
+                    obj.equation.c = obj.slope * obj.a.x - obj.a.y;
+                } else {
+                    //if slope is null then y co-efficent is 0 and c will be x co-ordinate of starting point
+                    /*
+                        if slope is null its a line parallel to y-axis with general equation x=c
+                    */
+                    obj.equation.a = 1;
+                    obj.equation.b = 0;
+                    obj.equation.c = obj.a.x;
+                }
+                polygon.push(obj);
+            }
+
+            startPoint = {};
+            var temp = document.getElementById("initial_pos").value.split(",");
+            startPoint.x = parseInt(temp[0]);
+            startPoint.y = parseInt(temp[1]);
+
+            nextPoint = {};
+            temp = document.getElementById("cushion_pos").value.split(",");
+            nextPoint.x = parseInt(temp[0]);
+            nextPoint.y = parseInt(temp[1]);
+
+            speed = parseInt(document.getElementById("speed").value);
+            givenTime = parseInt(document.getElementById("time").value);
+
+        }
+
+        // finds a point in a line with the given distance which is inside polygon
+
+        function findLastPoint(line, distance) {
+            //a,b,c are co-efficent of final quadratic equation deduced from line equation and distance equation
+            var a, b, c;
+            // d is discriminant b^2-4ac
+            var d;
+            // r1 and r2 two roots;
+            var r1 = { x: null, y: null },
+                r2 = { x: null, y: null };
+
+            if (line.equation.b != 0) {
+                /* this formula is defuce by reducing the equation to quadratic form manaually
+                1st equation is aX+bY=c
+                2nd equation is (X-x0)^2 + (Y-y0)^2 =distance^2
+                */
+
+                a = 1 + (Math.pow(line.equation.a, 2) / Math.pow(line.equation.b, 2));
+
+                b = -2 * (((line.equation.a * line.equation.c) / Math.pow(line.equation.b, 2)) + line.a.x - ((line.equation.a / line.equation.b) * line.a.y));
+
+                c = Math.pow(line.a.x, 2) + Math.pow(line.a.y, 2) + ((-2 * line.equation.c * line.a.y) / line.equation.b) - Math.pow(distance, 2);
+                c = c + (Math.pow(line.equation.c, 2) / Math.pow(line.equation.b, 2));
+
+                d = Math.pow(b, 2) - (4 * a * c);
+
+                // console.log("a: "+a+"\nb: "+b+"\nc: "+c+"\nd: "+d);
+                r1.x = (-b + Math.sqrt(d)) / (2 * a);
+                r1.y = (line.equation.c - (line.equation.a * r1.x)) / line.equation.b;
+
+                r2.x = (-b - Math.sqrt(d)) / (2 * a);
+                r2.y = (line.equation.c - (line.equation.a * r2.x)) / line.equation.b;
+                roundOfPoint(r1);
+                roundOfPoint(r2);
+
+                if (checkIfPointIsInsidePolygon(r1)) {
+                    return r1;
+                }
+                return r2;
+            }
+        }
+        // function to round x and y co-ordinate of a point upto 4 decimal points
+        function roundOfPoint(point) {
+            point.x = Math.round(point.x * 10000) / 10000;
+            point.y = Math.round(point.y * 10000) / 10000;
+        }
+
+        /*function checks if a point lines inside the polygon or not
+        logic is if point is a vertex of polygon then return inside else take a horizontal line from point going to +infinity
+        if this horizontal line cuts the side of polygon odd of times then inside  else outside
+        */
+        function checkIfPointIsInsidePolygon(point) {
+            count = 0;
+            hline = {
+                a: 0,
+                b: 1,
+                c: point.y
+            }; //horizontal line passing throught the point
+
+            if (checkiIfCorner(point)) {
+                return true;
+            }
+
+            for (i = 0; i < polygon.length; i++) {
+                p = solveLines(polygon[i].equation, hline);
+
+                if (p.x != null && p.y != null) {
+                    if (checkBounds(p, polygon[i]) && (point.x <= p.x)) {
+                        //console.log("point: "+JSON.stringify(p)+"\nequation: "+JSON.stringify(polygon[i].equation));
+                        count++;
+                    }
+                }
+
+            }
+            if (count % 2 == 1) {
+                return true;
+            }
+            return false;
+        }
+
+        //error handling
+        function validateInputs(){
+          var errMsg = "";
+          if(parseInt(document.getElementById("speed").value) > 1000 || parseInt(document.getElementById("speed").value) <0){
+            errMsg += "Speed should be within 0 and 1000 cm/s" +"\n";
+          }
+          if(document.getElementById("speed").value.trim() === ""){
+            errMsg += "Please enter the value of speed"+"\n";
+          }
+          if(document.getElementById("time").value.trim() === ""){
+            errMsg += "Please enter the value of time"+"\n";
+          }
+          if(document.getElementById("initial_pos").value.trim() === ""){
+            errMsg += "Please enter the value of Initial position"+"\n";
+          }
+          if(document.getElementById("cushion_pos").value.trim() === ""){
+            errMsg += "Please enter the value of Cushion Point position"+"\n";
+          }
+
+          return errMsg;
+        }
+        function main(value) {
+            //check for missing inputs or erroneous inputs
+            var errMsg = validateInputs();
+            if(errMsg.length>0){
+              alert(errMsg);
+              return;
+            }
+
+            //read the inputs
+            getInputs();
+
+            //clear the canvas and draw the axes
+            var c = document.getElementById("myCanvas");
+            var ctx = c.getContext("2d");
+            ctx.clearRect(0, 0, c.width, c.height);
+            drawAxes();
+
+            ctx.strokeStyle = "Red";
+            //render the polygon
+            for (var i = 0; i < polygon.length; i++) {
+                renderLine(polygon[i].a, polygon[i].b, ctx);
+            }
+
+            ctx.strokeStyle = "Grey";
+            //render the first line
+            renderLine(startPoint, nextPoint,ctx);
+            totalDistance = lengthOfLine(startPoint, nextPoint);
+
+            var nextLine;
+
+            while (true) {
+                nextLine = newLine(startPoint, nextPoint);
+                startPoint = nextLine.a;
+                nextPoint = nextLine.b;
+                if (givenTime < ((totalDistance + lengthOfLine(startPoint, nextPoint)) / speed)) {
+                    break;
+                }
+
+                renderLine(startPoint, nextPoint, ctx);
+                totalDistance += lengthOfLine(startPoint, nextPoint);
+            }
+
+            var remainingDistance = givenTime * speed - totalDistance;
+            var pt = findLastPoint(nextLine, remainingDistance);
+            ctx.strokeStyle = "Blue";
+            renderLine(startPoint, pt, ctx);
+
+            //console.log(pt);
+            document.getElementById('answer').innerHTML = "<h2> Final position of ball: ( " + pt.x + " , " + pt.y + " ) </h2>";
+        }
+
+        //creates fields for entering the polygon vertices
+        function generatePolygonInput() {
+            var no_of_sides = document.getElementById("polygon").value;
+            document.getElementById("polygonInput").innerHTML = "";
+            for (var i = 1; i <= no_of_sides; i++) {
+                var ip = document.createElement("input");
+                ip.placeholder = "x,y";
+                ip.id = "poly_" + i;
+
+                var div = document.createElement("div");
+                div.innerHTML = "Point " + i +"  ";
+                div.appendChild(ip);
+
+                document.getElementById("polygonInput").appendChild(div);
+            }
+        }
+
+        function drawAxes(){
+          var c = document.getElementById("myCanvas");
+          var ctx = c.getContext("2d");
+          ctx.strokeStyle = "Green";
+          var h = c.height;
+          var w = c.width;
+          var pt1 = {};pt2 = {};
+          // Y axis
+          pt1.x = 0;
+          pt1.y = -h/2;
+          pt2.x = 0;
+          pt2.y = h/2;
+          renderLine(pt1,pt2,ctx);
+
+          // X axis
+          pt1.x = -w/2;
+          pt1.y = 0;
+          pt2.y = 0;
+          pt2.x = w/2;
+          renderLine(pt1,pt2,ctx);
+        }
+    </script>
+</head>
+
+<body>
+    <canvas id="myCanvas" width="1000" height="600" style="border:1px solid #d3d3d3;">
+    Your browser does not support the HTML5 canvas tag.</canvas>
+    <p>*NOTE 1: Default canvas size is 1000 * 600. Modify the HTML to adjust the size accordingly.</p>
+    <p>*NOTE 2: Color coding: Green - X and Y Axes, Red - Polygon cushion boundaries, Grey - Path traversed by the ball, Blue - Line containing the final ball position</p>
+    <p>*NOTE 3: Click on "Given Test case" button to view results of the sample test case. "Other test case" is just another random test case. Use "Go" after giving inputs, to see the result</p>
+    <div id="answer"></div>
+
+    <div style="float:right;">
+      No. of Sides of the Bounding Polygon(greater than 2)
+      <input type="text" name="polygon" id="polygon" onkeyup="if(parseInt(document.getElementById('polygon').value)>2)document.getElementById('polygonInputButton').disabled=false;else document.getElementById('polygonInputButton').disabled=true;"><br/>
+      <button onclick="generatePolygonInput();" id="polygonInputButton" disabled>Enter polygon co-ordinates</button> <br />
+      <div id="polygonInput"></div>
+    </div>
+
+    Enter speed of ball (in cm/s). (Between 0 and 1000 cm/s) :
+    <!-- <input type="text" name="speed" id="speed" /> -->
+    <input type="number" name="speed" id="speed" min="0" max="1000">
+    <br /> Enter travelling time (in seconds):
+    <input type="text" name="time" id="time" />
+    <br /> Enter initial position:
+    <input type="text" name="initial_pos" id="initial_pos" placeholder="x,y" />
+    <br /> Enter position of point on cushion:
+    <input type="text" name="cushion_pos" id="cushion_pos" placeholder="x,y" />
+    <br />
+
+    <button onclick="main();" id='go' />Go</button>
+    <button onclick="initializeDefaultInputs();main();" id='givenTestCase' />Given Test case</button>
+    <button onclick="initializeOtherInputs();main();" />Other test case</button>
+    <button onclick="clearInputs();" />Clear Inputs</button>
+
+</body>
+
+</html>
