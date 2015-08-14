@@ -27,7 +27,7 @@
             var withinBoundsX = true;
             var withinBoundsY = true;
 
-            //rounded-off point and line for comparison
+            //rounded-off point and line
             var temp_point = {};
             temp_point.x = (Math.round(point.x * 10000)/10000);
             temp_point.y = (Math.round(point.y * 10000)/10000);
@@ -165,6 +165,7 @@
 
                 var newPoint = solveLines(equation, polygon[(currentSideIndex - i + sides) % sides].equation);
                 if (newPoint) {
+
                     var isWithinBounds = checkBounds(newPoint, polygon[(currentSideIndex - i + sides) % sides]);
                     if (isWithinBounds && !(Math.round(newPoint.x * 10000) / 10000 === Math.round(secondPoint.x * 10000) / 10000 && Math.round(newPoint.y * 10000) / 10000 === Math.round(secondPoint.y * 10000) / 10000)) {
                         lineIndex = i;
@@ -223,7 +224,7 @@
 
         // check if the point is on the line by puting the point in line equation aX+bY=c
         function isOnLine(point, line) {
-            if ((Math.round((line.a * point.x + line.b * point.y) * 100) / 100) === (Math.round(line.c * 100) / 100)) {
+            if ((Math.round((line.a * point.x + line.b * point.y)*100 )/100 ) === (Math.round(line.c*100 )/100)) {
                 return true;
             } else return false;
         }
@@ -232,7 +233,6 @@
         function checkSide(point) {
             var i = 0;
             for (; i < polygon.length; i++) {
-
                 if (isOnLine(point, polygon[i].equation)) {
                     var withinBoundsX = true,
                         withinBoundsY = true;
@@ -247,7 +247,6 @@
                     } else {
                         withinBoundsY = (point.y > polygon[i].a.y || point.y < polygon[i].b.y) ? false : true;
                     }
-
                     //return the side after breaking loop
                     if (withinBoundsX && withinBoundsY)
                         break;
@@ -322,7 +321,8 @@
             document.getElementById("poly_3").value = "284,142";
             document.getElementById("poly_4").value = "0,142";
         }
-        // reads all inputs need
+        // reads all inputs needed
+        // returns error msg, if any errors are found while reading the input.
         function getInputs() {
             //boundary polygon with n side (n is calcuated by length of array polygon)
             /*
@@ -386,6 +386,22 @@
             speed = parseInt(document.getElementById("speed").value);
             givenTime = parseInt(document.getElementById("time").value);
 
+            ///Error handling
+            var errMsg = "";
+            if(speed > 1000 || speed <0){
+              errMsg += "Speed should be within 0 and 1000 cm/s" +"\n";
+            }
+            if(!checkIfPointIsInsidePolygon(startPoint)){
+              errMsg += "The specified initial point isn't inside the polygon!\n";
+            }
+            if(checkSide(nextPoint) == null){
+              errMsg += "Cushion point does not lie on one of the boundaries(cushions)\n";
+            }
+            if(givenTime<0){
+              errMsg += "Time cannot be negative\n";
+            }
+
+            return errMsg;
         }
 
         // finds a point in a line with the given distance which is inside polygon
@@ -468,12 +484,10 @@
             return false;
         }
 
-        //error handling
+        //error handling for empty inputs
         function validateInputs(){
           var errMsg = "";
-          if(parseInt(document.getElementById("speed").value) > 1000 || parseInt(document.getElementById("speed").value) <0){
-            errMsg += "Speed should be within 0 and 1000 cm/s" +"\n";
-          }
+
           if(document.getElementById("speed").value.trim() === ""){
             errMsg += "Please enter the value of speed"+"\n";
           }
@@ -487,6 +501,8 @@
             errMsg += "Please enter the value of Cushion Point position"+"\n";
           }
 
+
+
           return errMsg;
         }
         function main(value) {
@@ -497,8 +513,12 @@
               return;
             }
 
-            //read the inputs
-            getInputs();
+            //read the inputs and check boundary conditions and handle them
+            var init = getInputs();
+            if(init.length>0){
+              alert(init);
+              return;
+            }
 
             //clear the canvas and draw the axes
             var c = document.getElementById("myCanvas");
