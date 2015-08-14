@@ -26,15 +26,28 @@
         function checkBounds(point, line) {
             var withinBoundsX = true;
             var withinBoundsY = true;
+
+            //rounded-off point and line for comparison
+            var temp_point = {};
+            temp_point.x = (Math.round(point.x * 10000)/10000);
+            temp_point.y = (Math.round(point.y * 10000)/10000);
+
+            var temp_line = {};temp_line.a ={};temp_line.b = {};
+            temp_line.a.x = (Math.round(line.a.x * 10000)/10000);
+            temp_line.a.y = (Math.round(line.a.y * 10000)/10000);
+            temp_line.b.x = (Math.round(line.b.x * 10000)/10000);
+            temp_line.b.y = (Math.round(line.b.y * 10000)/10000);
+
+
             if (line.a.x < line.b.x) {
-                withinBoundsX = (point.x > line.b.x || point.x < line.a.x) ? false : true;
+                withinBoundsX = (temp_point.x > temp_line.b.x || temp_point.x < temp_line.a.x) ? false : true;
             } else {
-                withinBoundsX = (point.x > line.a.x || point.x < line.b.x) ? false : true;
+                withinBoundsX = (temp_point.x > temp_line.a.x || temp_point.x < temp_line.b.x) ? false : true;
             }
             if (line.a.y < line.b.y) {
-                withinBoundsY = (point.y > line.b.y || point.y < line.a.y) ? false : true;
+                withinBoundsY = (temp_point.y > temp_line.b.y || temp_point.y < temp_line.a.y) ? false : true;
             } else {
-                withinBoundsY = (point.y > line.a.y || point.y < line.b.y) ? false : true;
+                withinBoundsY = (temp_point.y > temp_line.a.y || temp_point.y < temp_line.b.y) ? false : true;
             }
             return (withinBoundsX && withinBoundsY)
         }
