@@ -1,0 +1,178 @@
+<html>
+<head>
+<script>
+
+var inWords=""; // stores the result
+
+//words of nos from 0 to 19
+var ones = ["zero", "one", "two", "three","four","five","six","seven",
+ "eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+
+ // words of nos in tens place 
+var tens = ["", "ten", "twenty", "thirty","forty","fifty","sixty","seventy",
+    "eighty","ninety"];
+
+// ENUM for selecting BRITISH or US system of representing numbers in words
+
+typeOfSystem= {
+    BRITISH : 0,//India follows BRITISH system
+    US : 1
+}
+
+function expand(value,type)
+{
+	//Logic divides the number into measurable chunks
+	/*
+	US System => measure the millions part, then the thousands part, then the hundreds part, then if it is <= 20
+	British System => measure the lakhs part, then the thousands part, then the hundreds part, then if it is <= 20
+	*/
+	if(value>=100000 && type == typeOfSystem.BRITISH)
+	{
+		/*
+		considering the maximum amount, the highest unit that it would be measured in is lakhs, for the required problem statement
+		(Ex This can be increased to crores by adding another if condition on top, if the input would have supported numbers measured in crores [EXTENSIBILITY])
+		this block handles number in or above lakhs in BRITISH system 
+		>=100000
+		*/
+		
+		expand(parseInt(value/100000)); // recursively calls for digits above lakh's place
+		inWords+=" lakh";
+        if(value % 100000) // checks if there is digits are there below lakh's place other than zeros
+        {	
+			 if(value % 100000 < 100) //if hundred's place and thousand's place digits are zeros need to add "and" after lakh
+            {
+				inWords+= " and";
+            }
+			inWords+= " ";
+            expand(value % 100000); // recursively calls for digits below lakh's place
+        }
+	}
+	/*
+		considering the maximum amount, the highest unit that it would be measured in is millions, for the required problem statement
+		this block handles number above one million in US system 
+		>= 1000000
+	*/
+	else if(value>=1000000 && type == typeOfSystem.US)
+	{	
+		expand(parseInt(value/1000000)); // recursively calls for digits above million's place
+		inWords+=" million";
+		if(value % 1000000) // checks if there is digits are there below million's place other than zeros
+        {
+			 if(value % 1000000 < 100) //if hundred's place and thousand's place digits are zeros need to add "and" after million
+            {
+				inWords+= " and";
+            }
+			inWords+= " ";
+            expand(value % 1000000); // recursively calls for digits below million's place
+        }
+	}
+	/*
+		Since in both systems, the next considered amount after million or lakhs is measured in thousands,
+		this block handles number above one thousand and below one million or one lakh (based on system)
+		1000-99999 in BRITISH system
+		1000-999999 in US system
+	*/
+    else if(value>=1000)
+    {
+        expand(parseInt(value/1000)); // recursively calls for digits above thousand's place
+		inWords+=" thousand";
+        if(value % 1000) // checks if there is digits are there below thousand's place other than zeros
+        {
+            if(value % 1000 < 100) //if hundred's place digit is zero need to add "and" after thousand
+            {
+				inWords+= " and";
+            }
+			inWords+=" ";
+            expand(value % 1000); // recursively calls for digits below thousand's place
+        }
+    }
+	/*
+		this block handles number above one hundred and below one thousand
+		100-999
+	*/
+    else if(value >= 100)
+    {
+        expand(parseInt(value / 100)); // recursively calls for digits above hundred's place
+		inWords+=" hundred";
+        if(value % 100) // checks if there is digits are there below hundred's place other than zeros
+        {
+			inWords+= " and ";
+            expand (value % 100); // recursively calls for digits below hundred's place
+        }
+    }
+	/*
+		this block handles number above twenty and below one hundred
+		20-99
+	*/
+    else if(value >= 20)
+    {
+		inWords+= tens[parseInt(value / 10)]; // takes the value from array "tens" with digit in tens place
+        if(value % 10)
+        {
+			inWords+= " ";
+            expand(value % 10); // recursively call for digit in one's place
+        }
+    }
+	/*
+		this block handles number from zero to nineteen
+		0-19
+	*/
+    else
+    {
+		inWords+=ones[value]; // takes it from array "ones" with passed value
+    }
+	
+    return;
+}
+
+//Main function which receives input 
+function main()
+{
+	var number  = document.getElementById("input").value;
+	
+	var type = document.getElementById("type1").checked ? typeOfSystem.BRITISH : typeOfSystem.US;
+	
+	document.getElementById("output").innerHTML = "";
+	
+	/*
+	1st expression checks if input is not empty
+	2st expression checks if input sequence is not contains characters
+	3nd expression checks if its not a float
+	*/	
+	if(number=="" || isNaN(number) || number.indexOf('.')!=-1 )
+	{
+		alert("Please input a Integer within range (0,1000000)");
+	}
+	else
+	{	
+		inWords=""; //clears output buffer
+		
+		number=parseInt(number);// type cast to integer
+		
+		// check if number is within 0 and 1000000
+		if(number<0 || number>1000000)
+		{
+			alert("Please input a Integer within range (0,1000000)");
+		}
+		else
+		{
+
+			expand(number,type);
+			document.getElementById("output").innerHTML = "<H3>Output: "+inWords+"</H3>";
+		}
+	}
+}
+</script>
+<body>
+<div id="container">
+	Input (Between 0 and 1000000):
+	<input type="number" id="input" min="0" max="1000000"/><br>
+	<div id="system">
+		<input type="radio" id="type1" name="type_of_system" checked value="male">BRITISH System (measured in lakhs ,thousand etc)<br>
+		<input type="radio" id="type2" name="type_of_system" value="female">US System (measured in million ,thousand etc)<br> 
+	</div>
+	<button onclick="main();" id='enter' />ENTER</button>
+</div>
+<div id="output"></div>
+</body>
+</html>
