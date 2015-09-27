@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Merchant Dashboard</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    
+    <link href="default.css" rel="stylesheet" type="text/css">
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=places"></script>
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js"></script>
+    <script>
+
+
+var map;
+var infowindow;
+var reference_key=[];
+var search = window.location.search.split("=");
+//var keywords = userText.split(' ');
+var keywords = "restaurants";//search[1];
+var lat=12.9562;
+var longit = 77.7019;
+var pyrmont = new google.maps.LatLng(lat,longit);
+var review = [];
+var clickTagName = null;
+var inter;
+
+function showPosition(pos)
+  {
+ var markerX = new google.maps.Marker({
+    map: map,
+    icon:'markerX.png',
+    animation: google.maps.Animation.DROP,
+    position: pos
+  });
+  }
+ 
+function initialize() {
+    map = new google.maps.Map(document.getElementById('map-canvas'), {
+    mapTypeId: google.maps.MapTypeId.ROADMAP,
+    center: pyrmont,
+    zoom: 14
+  });
+
+  var request = {
+    location: pyrmont,
+    radius: 10000,
+    keyword: keywords
+  };
+  infowindow = new google.maps.InfoWindow();
+  var service = new google.maps.places.PlacesService(map);
+  service.nearbySearch(request, callback);
+}
+
+function callback(results, status) {
+  if (status == google.maps.places.PlacesServiceStatus.OK) {
+    for (var i = 0; i < results.length; i++) {
+      //createMarker(results[i]);
+      reference_key[i]=results[i].reference;
+    }
+    
+  }
+}
+
+function createMarker(place, image) {
+  var placeLoc = place;
+  var marker = new google.maps.Marker({
+    map: map,
+    icon:image,
+    animation: google.maps.Animation.DROP,
+    position: placeLoc
+  });
+}
+
+function AnalyzeButtonAction()
+{
+    alert('hello'+clickTagName);
+}
+
+function clearMarker(marker){
+	
+	if(marker)
+		marker.setMap(null);
+}
+
+
+
+
+function sendRequest(){
+	
+	var notificationsDone = 0;
+	var oldCarMarker;
+	var carMarker;
+	createMarker(new google.maps.LatLng("12.987152", "77.737139"));
+	var successCallBack = function(response){
+	
+		var nextNotification = notificationsDone + 1;
+		
+		var endPoint = "12.987152,77.737139";
+		
+		var notificationPoints = ["12.956036,77.711547 ", "12.960613,77.716297", "12.955795,77.714631"];
+		
+		
+		var response = response.documentElement.innerHTML;
+		
+		var lat = response.split(",")[0];
+		var lon = response.split(",")[1];
+		
+		oldCarMarker = carMarker;
+		clearMarker(oldCarMarker);
+		carMarker = createMarker(new google.maps.LatLng(lat, lon), 'marker-car.png');
+		var newLat = notificationPoints[nextNotification - 1].split(",");
+		var placeMarker = createMarker(new google.maps.LatLng(newLat[0] , newLat[1]),'marker-1.png');
+		if(lat + "," + lon === endPoint){
+			clearInteval(inter);
+		}
+		else if(lat + "," + lon === notificationPoints[nextNotification - 1]){
+			clearMarker(placeMarker );
+			var newLat = notificationPoints[nextNotification].split(",");
+			createMarker(new google.maps.LatLng(newLat[0] , newLat[1]),'marker-1.png');
+			notificationsDone++;
+		}
+		
+	};
+
+	var failureCallBack = function(error){
+		
+	};
+	
+	var oXHR = $.ajax({
+					type: "GET",
+					crossDomain : true,
+					url: "http://localhost:8080/TesignerRWS/rest/loginservice/update_ride",
+					success: successCallBack,
+					error: failureCallBack
+					
+	});
+
+}
+
+function getLocation(){
+
+	inter = setInterval( function(){
+		sendRequest();
+	}, 10000);
+
+}
+
+
+function getDetails(reference) {
+  var request = {
+    reference: reference
+  };
+
+  var infowindow = new google.maps.InfoWindow();
+  var service = new google.maps.places.PlacesService(map);
+
+  service.getDetails(request, function(result, status) {
+    if (status == google.maps.places.PlacesServiceStatus.OK) {
+      for(var i=0;i<(result.reviews && result.reviews.length);i++){
+        review[i]=result.reviews[i].text;
+        window.console.log('review = '+review[i]);
+       }
+      }});
+    
+    };
+  
+google.maps.event.addDomListener(window, 'load', initialize);
+    </script>
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#map-canvas, #map_canvas {
+  height: 100%;
+}
+
+@media print {
+  html, body {
+    height: auto;
+  }
+
+  #map-canvas, #map_canvas {
+    height: 450px;
+    width:450px;
+  }
+}
+
+#panel {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  margin-left: -180px;
+  z-index: 5;
+  background-color: #fff;
+  padding: 5px;
+  border: 1px solid #999;
+}
+</style>
+  </head>
+  <body onload= getLocation()>
+    <div id="map-canvas"></div>
+  </body>
+</html>

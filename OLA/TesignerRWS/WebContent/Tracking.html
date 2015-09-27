@@ -1,0 +1,75 @@
+<html>
+                <head>
+                                <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+                                <script type='text/javaScript'>
+                                                
+                                                function sendRequest(lat, lon){
+                                                                
+                                                                var successCallBack = function(response){
+
+                                                                };
+                                                
+                                                                var failureCallBack = function(error){
+                                                                                console.log(error);
+                                                                };
+                                                                
+                                                                http://localhost:8080/
+                                                                var oXHR = $.ajax({
+                                                                                type: "GET",
+                                                                                crossDomain : true,
+                                                                                url: "http://localhost:8080/TesignerRWS/rest/loginservice/track_ride?lat=" + lat + "&lon="+ lon,
+                                                                                success: successCallBack,
+                                                                                error: failureCallBack
+                                                                                
+                                                                });
+                                                
+                                                }
+                                                
+                                                function sendUpdate(){
+                                                
+                                                                var points =["12.950552,77.642363", "12.950662,77.644283", "12.949407,77.645485", "12.947531,77.647164", "12.946501,77.648548", "12.959093,77.658363", "12.958842,77.663942", "12.958257,77.667804", "12.958136,77.669252", "12.958087,77.670060", "12.958032,77.671269", "12.957760,77.673040", "12.956435,77.675942", "12.955431,77.678002", "12.954490,77.681027", "12.954929,77.684310", "12.956100,77.692786", "12.957146,77.699610", "12.956560,77.706691", "12.956142,77.712313", "12.956036,77.711547", "12.957355,77.715295", "12.961349,77.716475", "12.964632,77.717913", "12.967413,77.716089", "12.968312,77.713321", "12.972034,77.711712", "12.977471,77.709802", "12.977429,77.718042", "12.976864,77.724157", "12.981464,77.727483", "12.985897,77.730680", "12.987152,77.737139"];
+                                                                
+                                                                var i = 0;
+                                                                
+                                                                
+                                                                var inter = setInterval( function(){
+                                                                                point = points[i];
+                                                                                sendRequest(point.split(",")[0], point.split(",")[1]);
+                                                                                i++;
+                                                                                if(i == points.length){
+                                                                                                clearInterval(inter);
+                                                                                }
+                                                                                
+                                                                }, 5000);
+                                                
+                                                }
+                                                
+                                                /*function trackRide(){
+                                                                
+                                                                var successCallBack = function(response){
+                                                                                var response = JSON.parse(response);
+                                                                };
+                                                
+                                                                var failureCallBack = function(error){
+                                                                };
+                                                                
+                                                                
+                                                                var oXHR = $.ajax({
+                                                                                url: "http://sandbox-t.olacabs.com/v1/bookings/track_ride",
+                                                                                type: "GET",
+                                                                                headers: {
+                                                                                                "X-APP-TOKEN": "923b0b49fda4432e8eeeb3fe7624ac2f",
+                                                                                                "Authorization": "Bearer bb1b940161d34a16a55ab475237c0d5e"
+                                                                                },
+                                                                                success: successCallBack,
+                                                                                error: failureCallBack
+                                                                });                                                           
+                                                                
+                                                }*/
+                                </script>
+                </head>
+                
+                <body onload='sendUpdate();'>
+                
+                </body>
+</html>
