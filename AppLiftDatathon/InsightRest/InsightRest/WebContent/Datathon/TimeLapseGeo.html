@@ -1,0 +1,256 @@
+ <html>
+ <head>
+ <link rel="stylesheet" href="bootstrap.min.css"/>
+ <style>
+ input[type=range] {
+    -webkit-appearance: none;
+    background-color: rgb(63, 190, 180);
+  height: 5px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  outline:none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+     -webkit-appearance: none;
+    background-color: #666;
+    width: 10px;
+    height: 26px;
+}
+#loadingModal{
+    height:200px;
+    line-height:100px;
+    text-align:center;
+    font-size:24px;
+} 
+ </style>
+ </head>
+ <script type="text/javascript" src="https://www.google.com/jsapi?autoload={'modules':[{'name':'visualization','version':'1.1','packages':['geochart']}]}"></script>
+ <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+ <script>
+ google.setOnLoadCallback(drawRegionsMap);
+
+        var data;   
+          var chart;
+          var options = { 
+        	  colorAxis: {colors: ['#00853f', 'black', '#e31b23']} 
+			};
+      function drawRegionsMap() {
+        data = google.visualization.arrayToDataTable([
+            ['Country', 'Popularity']
+          ]);
+            chart = new google.visualization.GeoChart(document.getElementById('regions_div'));
+          chart.draw(data, options);
+          
+        }
+    
+    var intervalFunc;
+            var currentTimestamp = 1446004802;
+        var startTimestamp = 1446004802;
+        var endTimestamp = 1446008403;
+        var step = 100;
+        var index = 0;
+        var globalData;
+        
+    function acquireData(){
+    	$('#loadingModal').modal('show'); 
+    	index = 0;
+        document.getElementById('updateSliderTime').min = document.getElementById('updateSliderFrom').value;
+        document.getElementById('updateSliderTime').max = document.getElementById('updateSliderTo').value;
+        document.getElementById('updateSliderTime').step = step;
+        document.getElementById('updateSliderTime').value = document.getElementById('updateSliderFrom').value;
+        document.getElementById('updateSliderTimeValue').innerHTML = getDate(parseFloat(document.getElementById('updateSliderTime').value)); 
+        currentTimestamp = parseFloat(document.getElementById('updateSliderTime').value);
+        
+        var newStart = document.getElementById('updateSliderFrom').value;
+        var newEnd = document.getElementById('updateSliderTo').value;
+        var outcome = document.getElementById('outcome_c').checked? "outputC":"outputW";
+        var reqURL = "http://localhost:8080/InsightRest/innov/get/pp?start="+newStart+"&end="+newEnd+"&type="+outcome;
+        
+        $.ajax({
+           url: reqURL,
+           data: {
+              format: 'json'
+           },
+           error: function() {
+              //$('#info').html('<p>An error has occurred</p>');
+           },
+           success: function(d) {
+        	   $('#loadingModal').modal('hide'); 
+              globalData = d.result;
+              console.log(globalData);
+              data = google.visualization.arrayToDataTable(globalData[0]);
+              chart.draw(data, options);
+              //assign to data array here
+              
+           },
+           type: 'GET'
+        });
+    }
+    function startLapse(){
+        
+        
+            intervalFunc = window.setInterval(function () {
+                //$('#regions_div').fadeTo(100,1);
+               
+               
+               data = google.visualization.arrayToDataTable(globalData[index]);
+                
+              /* data = google.visualization.arrayToDataTable([
+                  ['Country', 'Popularity'],
+                  ['Germany', Math.random() * 1000],
+                  ['USA', Math.random() * 1000],
+                  ['Brazil', Math.random() * 1000],
+                  ['Canada', Math.random() * 1000],
+                  ['France', Math.random() * 1000],
+                  ['Russia', Math.random() * 1000]
+              ]); */
+              chart.draw(data, options);
+              
+              currentTimestamp = currentTimestamp+step;
+              index++;
+                document.getElementById('updateSliderTime').value = currentTimestamp+"";
+                document.getElementById('updateSliderTimeValue').innerHTML = getDate(currentTimestamp); 
+                //updateSliderTime(document.getElementById('updateSliderTime').value);
+                if(currentTimestamp>=parseFloat(document.getElementById('updateSliderTime').max)){
+                    clearTimeoutInterval();
+                }
+                //$('#regions_div').fadeTo(100,0.1);
+          }, 500)
+          
+          
+    }
+          
+    function clearTimeoutInterval(){
+        clearInterval(intervalFunc);
+    }
+       
+        function updateSliderFrom(val){
+            document.getElementById('updateSliderFromValue').innerHTML = getDate(parseFloat(val));
+        }
+        function updateSliderTO(val){
+            document.getElementById('updateSliderToValue').innerHTML = getDate(parseFloat(val));
+        }
+        function updateSliderTime(val){
+        //console.log(val);
+        
+            currentTimestamp = parseFloat(val);
+            index = parseInt((currentTimestamp-startTimestamp)/(100));
+            document.getElementById('updateSliderTimeValue').innerHTML = getDate(parseFloat(val)); 
+            data = google.visualization.arrayToDataTable(globalData[index]);
+            /* data = google.visualization.arrayToDataTable([
+                  ['Country', 'Popularity'],
+                  ['Germany', Math.random() * 1000],
+                  ['USA', Math.random() * 1000],
+                  ['Brazil', Math.random() * 1000],
+                  ['Canada', Math.random() * 1000],
+                  ['France', Math.random() * 1000],
+                  ['Russia', Math.random() * 1000]
+              ]); */
+              chart.draw(data, options);
+                
+        }
+      
+      function getDate(timestamp){
+        var a= new Date(timestamp);
+        return (a.toLocaleString()+", "+a.getMilliseconds()+" ms.");
+      }
+      window.onload = function(){
+        
+        
+      
+        document.getElementById('updateSliderFrom').min = startTimestamp;
+        document.getElementById('updateSliderFrom').max = endTimestamp;
+        document.getElementById('updateSliderFrom').value = startTimestamp;
+        document.getElementById('updateSliderFromValue').innerHTML = getDate(startTimestamp);
+        
+        document.getElementById('updateSliderTo').min = startTimestamp;
+        document.getElementById('updateSliderTo').max = endTimestamp;
+        document.getElementById('updateSliderTo').value = endTimestamp;
+        document.getElementById('updateSliderToValue').innerHTML = getDate(endTimestamp);
+      };
+      </script>
+      <body>
+      <div class='container' style='width:100%;padding:0px;margin:0px;'>
+        <div id="options" class='col-md-3' style='padding-top: 100px;height: 100%; background-color: #E5E5E5;'>
+            <div style='text-align:center;'><h3>Settings</h3></div>
+            <div class="form-horizontal">
+            <div><h4>Lapse Duration:</h4></div>
+              <div class="form-group">
+                <label for="inputEmail3" class="col-sm-2 control-label">From</label>
+                <div class="col-sm-10">
+                  <!--<input type="datetime-local" class="form-control" id="inputEmail3" placeholder="Start time">-->
+                  <input type="range" step="10" onchange='updateSliderFrom(this.value);' id='updateSliderFrom'/>
+                  <span id='updateSliderFromValue'></span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="inputPassword3" class="col-sm-2 control-label">To</label>
+                <div class="col-sm-10">
+                  <!--<input type="datetime-local" class="form-control" id="inputPassword3" placeholder="End time">-->
+                  <input type="range" step="10" onchange='updateSliderTO(this.value);' id='updateSliderTo'/>
+                  <span id='updateSliderToValue'></span>
+                </div>
+              </div>
+              <div><h4>Lapse Measure:</h4></div>
+              <div class="form-group">
+                <div class="col-sm-offset-2 col-sm-10">
+                  <div class="radio">
+                    <label>
+                      <input type="radio" name='outcome' checked="checked" value='c' id='outcome_c'> Outcome-Adv Clicked
+                    </label>
+                    <label>
+                      <input type="radio" name='outcome' value='w' id='outcome_w'> Outcome-Bidding Won
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="col-sm-offset-2 col-sm-10">
+                  <button class="btn btn-success" onclick='acquireData();'>Acquire Data</button>
+                </div>
+              </div>
+              
+              <div class="modal fade bs-example-modal-sm" tabindex="-1" role="dialog" aria-labelledby="mySmallModalLabel" id='loadingModal'>
+                  <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                      <img src='images/loading.gif' style='display:inline-block;margin-right:20px;' height='50' width='50'>Acquiring
+                    </div>
+                  </div>
+                </div>
+              
+            </div>
+        </div>
+        <div class='col-md-9'> 
+            <div style='text-align:center;'><h1>Geographic Choropleth Time-Lapse</h1></div>
+            <div id="regions_div" style="height: 500px;" class='col-md-12'></div>
+            
+            
+            <div class="col-md-12" style='padding:0px;'>
+                <input type="range" onchange='updateSliderTime(this.value);' id='updateSliderTime'/>
+                
+                
+                <!--<div class="progress-bar progress-bar-info" role="progressbar" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100" style="width: 20%" style='height:20px;'>
+                    <span class="sr-only">20% Complete</span>
+                </div>-->
+            </div>
+            <div class='col-md-12' style='text-align:center'>
+                <span id='updateSliderTimeValue'></span>
+            </div>
+            <div class='container' style='text-align:center;'>
+                <button type="button" class="btn btn-default" aria-label="Left Align" style='background-image: url("images/pause.png");background-size: 100%;border: 0px;height:30px; width:30px;' onclick='clearTimeoutInterval()';>
+                  <span class="" aria-hidden="true"></span>
+                </button>
+                
+                <button type="button" class="btn btn-default" aria-label="Left Align" style='background-image: url("images/play.png");background-size: 100%;border: 0px;height:30px; width:30px;' onclick='startLapse()'>
+                  <span class="" aria-hidden="true"></span>
+                </button>
+            </div>
+            <div>
+            </div>
+            
+        </div>
+    </div>
+      </body>
+      </html>
